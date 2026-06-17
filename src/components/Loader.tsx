@@ -1,6 +1,6 @@
 type LoaderProps = {
   message?: string
-  overlay?: boolean
+  variant?: 'inline' | 'banner' | 'overlay'
   size?: 'sm' | 'md' | 'lg'
 }
 
@@ -8,7 +8,11 @@ export function Spinner({ size = 'md' }: { size?: LoaderProps['size'] }) {
   return <span className={`spinner spinner-${size}`} aria-hidden="true" />
 }
 
-export function Loader({ message = 'Working…', overlay = false, size = 'md' }: LoaderProps) {
+export function Loader({
+  message = 'Working…',
+  variant = 'inline',
+  size = 'md',
+}: LoaderProps) {
   const content = (
     <div className="loader-content">
       <Spinner size={size} />
@@ -16,9 +20,17 @@ export function Loader({ message = 'Working…', overlay = false, size = 'md' }:
     </div>
   )
 
-  if (overlay) {
+  if (variant === 'overlay') {
     return (
       <div className="loader-overlay" role="status" aria-live="polite">
+        {content}
+      </div>
+    )
+  }
+
+  if (variant === 'banner') {
+    return (
+      <div className="loader-banner" role="status" aria-live="polite">
         {content}
       </div>
     )
@@ -34,12 +46,12 @@ export function Loader({ message = 'Working…', overlay = false, size = 'md' }:
 export function ProgressBar({ value, max, label }: { value: number; max: number; label?: string }) {
   const percent = max > 0 ? Math.round((value / max) * 100) : 0
   return (
-    <div className="progress-block">
+    <div className={`progress-block${label ? '' : ' progress-block-compact'}`}>
       {label && <p className="progress-label">{label}</p>}
       <div className="progress-track" aria-valuenow={value} aria-valuemin={0} aria-valuemax={max}>
         <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>
-      <p className="progress-percent">{percent}%</p>
+      {label && <p className="progress-percent">{percent}%</p>}
     </div>
   )
 }

@@ -100,6 +100,17 @@ function reorderHouseNumber(address1: string): string {
   return `${houseNumber} ${streetName}`
 }
 
+export function normalizeZipCode(zip: string): string {
+  const trimmed = zip.trim()
+  if (!trimmed) return ''
+
+  const match = trimmed.match(/^(\d{1,5})(-\d{4})?$/)
+  if (!match) return trimmed
+
+  const base = match[1].padStart(5, '0')
+  return match[2] ? `${base}${match[2]}` : base
+}
+
 export function isPoBoxOrRural(address: string): boolean {
   return PO_BOX.test(address.trim()) || RURAL_PREFIX.test(address.trim())
 }
@@ -191,6 +202,22 @@ export function cleanAddresses(rows: PtkRow[]): {
   const changes: AddressCleanChange[] = []
   const cleanedRows = rows.map((row, rowIndex) => {
     const result = cleanAddressRow(row, rowIndex)
+    const zip = result.row['Zip Code']?.trim() ?? ''
+    const normalizedZip = normalizeZipCode(zip)
+    if (normalizedZip && normalizedZip !== zip) {
+      const ptkId = result.row['Phi Theta Kappa ID'] ?? String(rowIndex + 1)
+      const name = [result.row['First Name'], result.row['Last Name']].filter(Boolean).join(' ')
+      result.changes.push({
+        rowIndex,
+        ptkId,
+        name,
+        field: 'Zip Code',
+        before: zip,
+        after: normalizedZip,
+        action: '',
+      })
+      result.row['Zip Code'] = normalizedZip
+    }
     changes.push(...result.changes)
     return result.row
   })

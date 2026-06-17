@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BeforeAfter, ChangeLegend } from './components/BeforeAfter'
+import { TablePagination } from './components/TablePagination'
+import { buildAddressChangeGroups, getPageCount, paginateItems } from './lib/pagination'
 import { Loader, ProgressBar, Spinner } from './components/Loader'
 import { SourceBadge } from './components/SourceBadge'
 import { StatCard } from './components/StatCard'
@@ -80,6 +82,7 @@ export default function App() {
   const [ceebKeyColumn, setCeebKeyColumn] = useState('')
   const [ceebValueColumn, setCeebValueColumn] = useState('')
   const [loadingMessage, setLoadingMessage] = useState('')
+  const [ceebBusy, setCeebBusy] = useState(false)
   const [ceebProgress, setCeebProgress] = useState({ done: 0, total: 0 })
   const [smartyResults, setSmartyResults] = useState<SmartyValidationResult[]>([])
   const [smartyConfigured, setSmartyConfigured] = useState<boolean | null>(null)
@@ -89,8 +92,22 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
   const [dragActive, setDragActive] = useState(false)
+  const [addressChangesPage, setAddressChangesPage] = useState(1)
+  const [ceebChangesPage, setCeebChangesPage] = useState(1)
+  const [ceebStillMissingPage, setCeebStillMissingPage] = useState(1)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const stepBusy = loading || ceebBusy || validatingAddresses
+  const showStepStatus =
+    (step === 'ceeb' && ceebBusy) || (step === 'addresses' && validatingAddresses)
+
+  function continueLabel() {
+    if (loading) return 'Reading file…'
+    if (ceebBusy) return 'Searching CEEB codes…'
+    if (validatingAddresses) return 'Validating addresses…'
+    return 'Continue'
+  }
 
   const steps = campusType === 'online' ? ONLINE_STEPS : MAIN_STEPS
   const stepIndex = steps.findIndex((item) => item.id === step)
@@ -100,6 +117,42 @@ export default function App() {
     const base = fileName.replace(/\.(csv|xlsx|xls)$/i, '')
     return `${base}_prepared.csv`
   }, [fileName])
+
+  const displayedAddressChanges = useMemo(
+    () => buildAddressChangeGroups(addressChanges, addressChangesPage),
+    [addressChanges, addressChangesPage],
+  )
+
+  const displayedCeebChanges = useMemo(
+    () => paginateItems(ceebChanges, ceebChangesPage),
+    [ceebChanges, ceebChangesPage],
+  )
+
+  const displayedCeebStillMissing = useMemo(
+    () => paginateItems(ceebStillMissing, ceebStillMissingPage),
+    [ceebStillMissing, ceebStillMissingPage],
+  )
+
+  useEffect(() => {
+    const pageCount = getPageCount(addressChanges.length)
+    if (addressChangesPage > pageCount) {
+      setAddressChangesPage(pageCount)
+    }
+  }, [addressChanges.length, addressChangesPage])
+
+  useEffect(() => {
+    const pageCount = getPageCount(ceebChanges.length)
+    if (ceebChangesPage > pageCount) {
+      setCeebChangesPage(pageCount)
+    }
+  }, [ceebChanges.length, ceebChangesPage])
+
+  useEffect(() => {
+    const pageCount = getPageCount(ceebStillMissing.length)
+    if (ceebStillMissingPage > pageCount) {
+      setCeebStillMissingPage(pageCount)
+    }
+  }, [ceebStillMissing.length, ceebStillMissingPage])
 
   useEffect(() => {
     if (step !== 'addresses') {
@@ -165,6 +218,9 @@ export default function App() {
       setHeaders(parsed.headers)
       setRows(cleaned.rows)
       setAddressChanges(cleaned.changes)
+      setAddressChangesPage(1)
+      setCeebChangesPage(1)
+      setCeebStillMissingPage(1)
       setStartTerm(extractStartTerm(file.name))
       setAddressIssues([])
       setCeebChanges([])
@@ -247,12 +303,14 @@ export default function App() {
       useOnlineSearch: options.useOnlineSearch,
       onProgress: (done, total) => {
         setCeebProgress({ done, total })
-        setLoadingMessage(`Searching College Board — ${done} of ${total} colleges`)
+        setLoadingMessage(`Searching online references — ${done} of ${total} colleges`)
       },
     })
 
     setRows(result.rows)
     setCeebChanges(result.changes)
+    setCeebChangesPage(1)
+    setCeebStillMissingPage(1)
     setCeebStillMissing(result.stillMissing)
     setCeebKeyColumn(keyColumn)
     setCeebValueColumn(valueColumn)
@@ -263,13 +321,13 @@ export default function App() {
 
   async function rerunCeebSearch() {
     setError('')
-    setLoading(true)
+    setCeebBusy(true)
     try {
       await applyBundledCeebPrep(rows, { useOnlineSearch: true, forceRefresh: true })
     } catch (ceebError) {
       setError(ceebError instanceof Error ? ceebError.message : 'Failed to rerun CEEB search.')
     } finally {
-      setLoading(false)
+      setCeebBusy(false)
       setLoadingMessage('')
     }
   }
@@ -324,17 +382,17 @@ export default function App() {
     }
 
     if (step === 'addresses') {
-      setLoading(true)
-      setLoadingMessage('Preparing CEEB code lookup…')
+      setStep('ceeb')
+      setCeebBusy(true)
+      setLoadingMessage('Loading CEEB reference file…')
       void applyBundledCeebPrep(rows, { useOnlineSearch: true })
-        .then(() => setStep('ceeb'))
         .catch((ceebError) => {
           setError(
             ceebError instanceof Error ? ceebError.message : 'Failed to apply CEEB lookup.',
           )
         })
         .finally(() => {
-          setLoading(false)
+          setCeebBusy(false)
           setLoadingMessage('')
         })
       return
@@ -384,6 +442,9 @@ export default function App() {
     setStartTerm('')
     setAddressIssues([])
     setAddressChanges([])
+    setAddressChangesPage(1)
+    setCeebChangesPage(1)
+    setCeebStillMissingPage(1)
     setCeebChanges([])
     setCeebStillMissing([])
     setAoiMapped(0)
@@ -391,6 +452,7 @@ export default function App() {
     setCeebKeyColumn('')
     setCeebValueColumn('')
     setCeebProgress({ done: 0, total: 0 })
+    setCeebBusy(false)
     setSmartyResults([])
     setSmartyConfigured(null)
     addressValidationRan.current = false
@@ -413,8 +475,6 @@ export default function App() {
       <StepProgress steps={steps} currentIndex={stepIndex} />
 
       <section className="card">
-        {loading && <Loader message={loadingMessage || 'Working…'} overlay />}
-
         {step === 'upload' && (
           <>
             <div className="card-header">
@@ -424,68 +484,120 @@ export default function App() {
                 term are detected from the file name.
               </p>
             </div>
-            <div
-              className={`upload-zone${dragActive ? ' upload-zone-drag' : ''}`}
-              onDragEnter={onUploadDragEnter}
-              onDragLeave={onUploadDragLeave}
-              onDragOver={onUploadDragOver}
-              onDrop={onUploadDrop}
-              onClick={() => {
-                if (!loading) fileInputRef.current?.click()
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  if (!loading) fileInputRef.current?.click()
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label="Upload PTK import file"
-            >
-              <svg className="upload-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-                <path
-                  d="M24 32V16M24 16L18 22M24 16L30 22"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M8 32V36C8 38.2 9.8 40 12 40H36C38.2 40 40 38.2 40 36V32"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <p className="upload-title">PTK import file</p>
-              <p className="upload-hint">
-                Drag and drop here, or click to browse
-                <br />
-                CSV or Excel · include MAIN CAMPUS or ONLINE in the filename
-              </p>
-              <input
-                ref={fileInputRef}
-                id="ptk-file"
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                hidden
-                onChange={(event) => {
-                  pickPtkFile(event.target.files?.[0])
-                  event.target.value = ''
-                }}
-              />
-            </div>
-            {fileName && campusType && (
-              <div className="meta-row">
-                <span className={`badge ${campusType}`}>{campusLabel(campusType)}</span>
-                <span className="badge">{rows.length.toLocaleString()} rows</span>
-                {startTerm && <span className="badge">Start term: {startTerm}</span>}
-                {addressChanges.length > 0 && (
-                  <span className="badge">{addressChanges.length} addresses cleaned</span>
+            {fileName && campusType ? (
+              <div className={`upload-result${loading ? ' upload-result-busy' : ''}`}>
+                {loading && (
+                  <Loader message={loadingMessage || 'Reading file…'} variant="overlay" size="sm" />
                 )}
+                <div
+                  className="upload-card"
+                  onClick={() => {
+                    if (!loading) fileInputRef.current?.click()
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      fileInputRef.current?.click()
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Replace uploaded file"
+                >
+                  <div className="upload-card-top">
+                    <span className="upload-file-check" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M16.5 5.5L8 14L3.5 9.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <p className="upload-file-name" title={fileName}>
+                      {fileName}
+                    </p>
+                    <span className="upload-file-action">Replace</span>
+                  </div>
+                  <p className="upload-card-meta">
+                    <span className={`upload-meta-tag upload-meta-campus ${campusType}`}>
+                      {campusLabel(campusType)}
+                    </span>
+                    <span className="upload-meta-tag upload-meta-rows">
+                      {rows.length.toLocaleString()} rows
+                    </span>
+                    {startTerm && (
+                      <span className="upload-meta-tag upload-meta-term">{startTerm}</span>
+                    )}
+                    {addressChanges.length > 0 && (
+                      <span className="upload-meta-tag upload-meta-cleaned">
+                        {addressChanges.length.toLocaleString()} Addresses cleaned
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={`upload-zone${dragActive ? ' upload-zone-drag' : ''}${loading ? ' upload-zone-busy' : ''}`}
+                onDragEnter={onUploadDragEnter}
+                onDragLeave={onUploadDragLeave}
+                onDragOver={onUploadDragOver}
+                onDrop={onUploadDrop}
+                onClick={() => {
+                  if (!loading) fileInputRef.current?.click()
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    if (!loading) fileInputRef.current?.click()
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload PTK import file"
+              >
+                {loading && (
+                  <Loader message={loadingMessage || 'Reading file…'} variant="overlay" size="sm" />
+                )}
+                <svg className="upload-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+                  <path
+                    d="M24 32V16M24 16L18 22M24 16L30 22"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8 32V36C8 38.2 9.8 40 12 40H36C38.2 40 40 38.2 40 36V32"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <p className="upload-title">PTK import file</p>
+                <p className="upload-hint">
+                  Drag and drop here, or click to browse
+                  <br />
+                  CSV or Excel · include{' '}
+                  <span className="upload-hint-tag">MAIN CAMPUS</span> or{' '}
+                  <span className="upload-hint-tag">ONLINE</span> in the filename
+                </p>
               </div>
             )}
+            <input
+              ref={fileInputRef}
+              id="ptk-file"
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              hidden
+              onChange={(event) => {
+                pickPtkFile(event.target.files?.[0])
+                event.target.value = ''
+              }}
+            />
           </>
         )}
 
@@ -506,11 +618,20 @@ export default function App() {
             </div>
 
             {validatingAddresses && (
-              <ProgressBar
-                value={addressValidationProgress.done}
-                max={addressValidationProgress.total}
-                label="Validating flagged addresses with Smarty…"
-              />
+              <div className="status-panel" role="status" aria-live="polite">
+                <Spinner size="sm" />
+                <div className="status-panel-text">
+                  <p className="status-panel-message">
+                    Validating flagged addresses with Smarty…
+                  </p>
+                  <div className="status-panel-progress">
+                    <ProgressBar
+                      value={addressValidationProgress.done}
+                      max={addressValidationProgress.total}
+                    />
+                  </div>
+                </div>
+              </div>
             )}
 
             {smartyConfigured === false && (
@@ -540,8 +661,11 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {addressChanges.slice(0, 50).map((change, index) => (
-                        <tr key={`${change.ptkId}-${change.field}-${index}`}>
+                      {displayedAddressChanges.map(({ change, groupIndex }, index) => (
+                        <tr
+                          key={`${change.ptkId}-${change.field}-${index}`}
+                          className={groupIndex % 2 === 1 ? 'row-group-alt' : undefined}
+                        >
                           <td>{change.ptkId}</td>
                           <td>
                             <span className="field-tag">{change.field}</span>
@@ -554,9 +678,12 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
-                {addressChanges.length > 50 && (
-                  <p className="truncate-note">Showing first 50 of {addressChanges.length} changes</p>
-                )}
+                <TablePagination
+                  page={addressChangesPage}
+                  total={addressChanges.length}
+                  onPageChange={setAddressChangesPage}
+                  noun="changes"
+                />
               </div>
             )}
 
@@ -571,38 +698,23 @@ export default function App() {
                         <th>Name</th>
                         <th>Address</th>
                         <th>Issues</th>
-                        <th>Smarty</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {addressIssues.slice(0, 100).map((issue) => {
-                        const smarty = smartyResults.find((r) => r.rowIndex === issue.rowIndex)
-                        return (
-                          <tr key={issue.ptkId}>
-                            <td>{issue.ptkId}</td>
-                            <td>{issue.name}</td>
-                            <td>{getAddressPreview(rows[issue.rowIndex])}</td>
-                            <td>
-                              {issue.issues.map((item) => (
-                                <span key={item} className="status-flagged" style={{ display: 'block' }}>
-                                  {item}
-                                </span>
-                              ))}
-                            </td>
-                            <td>
-                              {smarty ? (
-                                <span className={smarty.valid ? 'status-resolved' : 'status-flagged'}>
-                                  {smarty.valid ? 'Verified' : smarty.message}
-                                </span>
-                              ) : validatingAddresses ? (
-                                <Spinner size="sm" />
-                              ) : (
-                                '—'
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
+                      {addressIssues.slice(0, 100).map((issue) => (
+                        <tr key={issue.ptkId}>
+                          <td>{issue.ptkId}</td>
+                          <td>{issue.name}</td>
+                          <td>{getAddressPreview(rows[issue.rowIndex])}</td>
+                          <td>
+                            {issue.issues.map((item) => (
+                              <span key={item} className="status-flagged" style={{ display: 'block' }}>
+                                {item}
+                              </span>
+                            ))}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -623,12 +735,26 @@ export default function App() {
             <div className="card-header">
               <h2>CEEB codes</h2>
               <p>
-                Missing codes are filled from the Excel reference, then searched on
-                College Board. All codes are padded to four digits.
+                Missing codes are filled from the Excel reference, then searched online
+                (College Board, Excel fuzzy match, and supplements). All codes are padded to four digits.
               </p>
             </div>
 
-            {ceebKeyColumn ? (
+            {ceebBusy ? (
+              <div className="status-panel" role="status" aria-live="polite">
+                <Spinner size="sm" />
+                <div className="status-panel-text">
+                  <p className="status-panel-message">
+                    {loadingMessage || 'Applying CEEB lookup…'}
+                  </p>
+                  {ceebProgress.total > 0 && (
+                    <div className="status-panel-progress">
+                      <ProgressBar value={ceebProgress.done} max={ceebProgress.total} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : ceebKeyColumn ? (
               <div className="alert alert-success">
                 <span className="alert-icon">✓</span>
                 <span>
@@ -636,26 +762,15 @@ export default function App() {
                   <strong>{ceebValueColumn}</strong>
                 </span>
               </div>
-            ) : (
-              <Loader message="Applying CEEB lookup…" />
-            )}
-
-            {ceebProgress.total > 0 && (
-              <ProgressBar
-                value={ceebProgress.done}
-                max={ceebProgress.total}
-                label={loadingMessage}
-              />
-            )}
+            ) : null}
 
             <div className="toolbar">
               <button
                 type="button"
                 className="btn btn-ghost"
                 onClick={() => void rerunCeebSearch()}
-                disabled={loading}
+                disabled={ceebBusy}
               >
-                {loading ? <Spinner size="sm" /> : null}
                 Rerun search (Excel + online)
               </button>
             </div>
@@ -679,7 +794,7 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ceebChanges.slice(0, 50).map((change) => (
+                      {displayedCeebChanges.map((change) => (
                         <tr key={`${change.ptkId}-${change.rowIndex}`}>
                           <td>{change.college}</td>
                           <td>
@@ -693,19 +808,24 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
-                {ceebChanges.length > 50 && (
-                  <p className="truncate-note">Showing first 50 of {ceebChanges.length} updates</p>
-                )}
+                <TablePagination
+                  page={ceebChangesPage}
+                  total={ceebChanges.length}
+                  onPageChange={setCeebChangesPage}
+                  noun="updates"
+                />
               </div>
             )}
 
             {ceebStillMissing.length > 0 && (
               <div className="section-block">
+                <p className="section-title">Still missing</p>
                 <div className="alert alert-warning">
                   <span className="alert-icon">!</span>
                   <div>
                     <strong>{ceebStillMissing.length} colleges</strong> still need CEEB codes.
-                    Search manually:
+                    Search on SUNY, then add verified codes to{' '}
+                    <code>public/reference/ceeb-supplements.json</code> for future imports.
                     <ul className="link-list">
                       <li>
                         <a href={COLLEGE_CEEB_URL} target="_blank" rel="noreferrer">
@@ -730,7 +850,7 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ceebStillMissing.slice(0, 100).map((item) => (
+                      {displayedCeebStillMissing.map((item) => (
                         <tr key={`${item.ptkId}-${item.rowIndex}`}>
                           <td>{item.ptkId}</td>
                           <td>{item.college}</td>
@@ -740,6 +860,12 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
+                <TablePagination
+                  page={ceebStillMissingPage}
+                  total={ceebStillMissing.length}
+                  onPageChange={setCeebStillMissingPage}
+                  noun="colleges"
+                />
               </div>
             )}
           </>
@@ -764,7 +890,10 @@ export default function App() {
                 CMU AOI column has been added to your file.
               </div>
             ) : (
-              <Loader message="Applying AOI mapping…" />
+              <div className="status-panel" role="status" aria-live="polite">
+                <Spinner size="sm" />
+                <p className="status-panel-message">Applying AOI mapping…</p>
+              </div>
             )}
           </>
         )}
@@ -872,7 +1001,7 @@ export default function App() {
               type="button"
               className="btn btn-secondary"
               onClick={goBack}
-              disabled={stepIndex === 0 || loading}
+              disabled={stepIndex === 0 || loading || ceebBusy}
             >
               Back
             </button>
@@ -880,10 +1009,10 @@ export default function App() {
               type="button"
               className="btn btn-primary"
               onClick={goNext}
-              disabled={loading || validatingAddresses || (step === 'upload' && !rows.length)}
+              disabled={stepBusy || (step === 'upload' && !rows.length)}
             >
-              {loading || validatingAddresses ? <Spinner size="sm" /> : null}
-              {loading || validatingAddresses ? 'Working…' : 'Continue'}
+              {stepBusy && !showStepStatus ? <Spinner size="sm" /> : null}
+              {continueLabel()}
             </button>
           </div>
         )}

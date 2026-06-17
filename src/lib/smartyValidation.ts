@@ -1,3 +1,5 @@
+import { normalizeZipCode } from './addressClean'
+
 export type SmartyValidationResult = {
   rowIndex: number
   valid: boolean
@@ -29,7 +31,7 @@ export async function validateAddressWithSmarty(row: {
   const street = [row['Address 1']?.trim(), row['Address 2']?.trim()].filter(Boolean).join(' ')
   const city = row.City?.trim() ?? ''
   const state = row.State?.trim() ?? ''
-  const zip = row['Zip Code']?.trim() ?? ''
+  const zip = normalizeZipCode(row['Zip Code']?.trim() ?? '')
 
   if (!street) {
     return { configured: true, valid: false, message: 'No address to validate.' }

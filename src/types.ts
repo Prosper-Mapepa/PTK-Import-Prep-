@@ -25,7 +25,7 @@ export type CeebChange = {
   college: string
   before: string
   after: string
-  source: 'lookup' | 'padding' | 'online' | 'unchanged'
+  source: 'lookup' | 'padding' | 'online' | 'supplement' | 'unchanged'
 }
 
 export type CeebStillMissing = {

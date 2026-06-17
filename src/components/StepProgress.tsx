@@ -6,8 +6,14 @@ type StepProgressProps = {
 }
 
 export function StepProgress({ steps, currentIndex }: StepProgressProps) {
+  const progressPercent =
+    steps.length > 1 ? (currentIndex / (steps.length - 1)) * 100 : 0
+
   return (
     <nav className="step-progress" aria-label="Preparation steps">
+      <div className="step-progress-rail" aria-hidden="true">
+        <div className="step-progress-rail-fill" style={{ width: `${progressPercent}%` }} />
+      </div>
       {steps.map((item, index) => {
         const status =
           index < currentIndex ? 'done' : index === currentIndex ? 'active' : 'upcoming'
@@ -29,7 +35,6 @@ export function StepProgress({ steps, currentIndex }: StepProgressProps) {
               )}
             </div>
             <span className="step-label">{item.label}</span>
-            {index < steps.length - 1 && <div className="step-connector" />}
           </div>
         )
       })}

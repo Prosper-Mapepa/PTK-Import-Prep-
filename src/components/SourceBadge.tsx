@@ -3,6 +3,7 @@ import type { CeebChange } from '../types'
 const LABELS: Record<CeebChange['source'], string> = {
   lookup: 'Excel lookup',
   online: 'College Board',
+  supplement: 'Reference supplement',
   padding: 'Zero padding',
   unchanged: 'Unchanged',
 }
