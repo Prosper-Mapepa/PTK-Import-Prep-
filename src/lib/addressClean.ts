@@ -1,8 +1,35 @@
 import type { AddressCleanChange, PtkRow } from '../types'
 import type { SmartyValidationResult } from './smartyValidation'
 
-const UNIT_SUFFIX =
-  /\s+((?:apt|apartment|unit|ste|suite|rm|room|bldg|building|fl|floor|dept|sp|space|lot)\.?\s*#?\s*[\w/-]+|#\s*[\w/-]+)$/i
+const UNIT_LABELS = [
+  'apartment',
+  'apt',
+  'building',
+  'bldg',
+  'dept',
+  'floor',
+  'fl',
+  'lot',
+  'room',
+  'rm',
+  'space',
+  'sp',
+  'suite',
+  'ste',
+  'unit',
+] as const
+
+const UNIT_LABEL_PATTERN = UNIT_LABELS.map((label) => `\\b${label}\\b`).join('|')
+
+const UNIT_SUFFIX = new RegExp(
+  `\\s+((?:${UNIT_LABEL_PATTERN})\\.?\\s*#?\\s*[\\w/-]+|#\\s*[\\w/-]+)$`,
+  'i',
+)
+
+const UNIT_PART = new RegExp(
+  `^(?:(?:${UNIT_LABEL_PATTERN})\\.?\\s*#?\\s*[\\w/-]+|#\\s*[\\w/-]+)$`,
+  'i',
+)
 
 const TRAILING_CITY_STATE_ZIP =
   /^(.+?)\s+([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)\s*$/i
@@ -17,6 +44,50 @@ const PO_BOX =
   /^(p\.?\s*o\.?\s*b\.?|po\s*b\.?|p\.?\s*o\.?\s*box|po\s*box|post\s*office\s*box)\b/i
 
 const RURAL_PREFIX = /^[NSEW]\d+/i
+
+function stripLeadingJunk(address: string): string {
+  return normalizeSpaces(address.replace(/^[^a-zA-Z0-9]+/, ''))
+}
+
+export function isNumbersOnlyAddress(address: string): boolean {
+  const trimmed = normalizeSpaces(address)
+  return /^\d+[A-Za-z]?$/.test(trimmed)
+}
+
+export function isIncompletePoBoxAddress(address: string): boolean {
+  const trimmed = normalizeSpaces(address)
+  if (!PO_BOX.test(trimmed)) return false
+
+  const rest = trimmed.replace(PO_BOX, '').trim()
+  if (!rest) return true
+  if (!/\d/.test(rest)) return true
+
+  return false
+}
+
+export function isIncompleteAddress1(address: string): boolean {
+  const trimmed = normalizeSpaces(address)
+  if (!trimmed) return false
+  if (isNumbersOnlyAddress(trimmed)) return true
+  if (isIncompletePoBoxAddress(trimmed)) return true
+  return false
+}
+
+export function isUnitOnlyAddress(address: string): boolean {
+  const trimmed = normalizeSpaces(address)
+  if (!trimmed) return true
+
+  return trimmed
+    .split(',')
+    .map((part) => part.trim())
+    .every((part) => UNIT_PART.test(part))
+}
+
+function sanitizeAddress2(address2: string): string {
+  const trimmed = normalizeSpaces(address2)
+  if (!trimmed) return ''
+  return isUnitOnlyAddress(trimmed) ? trimmed : ''
+}
 
 function mergeAddress2(existing: string, unit: string): string {
   const current = existing.trim()
@@ -143,8 +214,8 @@ export function cleanAddressRow(row: PtkRow, rowIndex: number): {
   const ptkId = row['Phi Theta Kappa ID'] ?? String(rowIndex + 1)
   const name = [row['First Name'], row['Last Name']].filter(Boolean).join(' ')
 
-  let address1 = row['Address 1']?.trim() ?? ''
-  if (!address1) return { row: nextRow, changes }
+  let address1 = stripLeadingJunk(row['Address 1']?.trim() ?? '')
+  let address2 = sanitizeAddress2(row['Address 2'] ?? '')
 
   const original = {
     address1: row['Address 1'] ?? '',
@@ -154,25 +225,37 @@ export function cleanAddressRow(row: PtkRow, rowIndex: number): {
     zip: row['Zip Code'] ?? '',
   }
 
-  const unitSplit = extractUnit(address1)
-  address1 = unitSplit.street
-  let address2 = mergeAddress2(row['Address 2'] ?? '', unitSplit.unit)
+  let city = row.City?.trim() ?? ''
+  let state = row.State?.trim() ?? ''
+  let zip = row['Zip Code']?.trim() ?? ''
 
-  const locationSplit = extractTrailingLocation(address1, nextRow)
-  address1 = locationSplit.street
-  const city = locationSplit.city
-  const state = locationSplit.state
-  const zip = locationSplit.zip
+  if (address1) {
+    const unitSplit = extractUnit(address1)
+    address1 = unitSplit.street
+    address2 = mergeAddress2(address2, unitSplit.unit)
 
-  const reordered = reorderHouseNumber(address1)
-  if (reordered !== address1) address1 = reordered
+    const locationSplit = extractTrailingLocation(address1, nextRow)
+    address1 = locationSplit.street
+    city = locationSplit.city || city
+    state = locationSplit.state || state
+    zip = locationSplit.zip || zip
 
-  if (shouldClearAddress1(address1)) {
+    const reordered = reorderHouseNumber(address1)
+    if (reordered !== address1) address1 = reordered
+  }
+
+  if (shouldClearAddress1(address1) || isIncompleteAddress1(address1)) {
     address1 = ''
   }
 
+  const trailingUnit = extractUnit(address1)
+  if (trailingUnit.unit) {
+    address1 = trailingUnit.street
+    address2 = mergeAddress2(address2, trailingUnit.unit)
+  }
+
   address1 = normalizeSpaces(address1)
-  address2 = normalizeSpaces(address2)
+  address2 = sanitizeAddress2(normalizeSpaces(address2))
 
   nextRow['Address 1'] = address1
   nextRow['Address 2'] = address2
@@ -258,17 +341,44 @@ export function applySmartyStandardization(
     const ptkId = row['Phi Theta Kappa ID'] ?? String(validation.rowIndex + 1)
     const name = [row['First Name'], row['Last Name']].filter(Boolean).join(' ')
 
-    const updates: [string, string, string][] = [
-      ['Address 1', row['Address 1'] ?? '', std.address1],
-      ['Address 2', row['Address 2'] ?? '', std.address2],
-      ['City', row.City ?? '', std.city],
-      ['State', row.State ?? '', std.state],
-      ['Zip Code', row['Zip Code'] ?? '', std.zip],
-    ]
+    const beforeRow = {
+      'Address 1': row['Address 1'] ?? '',
+      'Address 2': row['Address 2'] ?? '',
+      City: row.City ?? '',
+      State: row.State ?? '',
+      'Zip Code': row['Zip Code'] ?? '',
+    }
 
-    for (const [field, before, after] of updates) {
-      if (before !== after && after) {
-        row[field] = after
+    row['Address 1'] = std.address1
+    row['Address 2'] = std.address2
+    row.City = std.city
+    row.State = std.state
+    row['Zip Code'] = std.zip
+
+    let address1 = stripLeadingJunk(row['Address 1']?.trim() ?? '')
+    let address2 = sanitizeAddress2(row['Address 2'] ?? '')
+
+    const unitSplit = extractUnit(address1)
+    address1 = unitSplit.street
+    address2 = mergeAddress2(address2, unitSplit.unit)
+
+    if (shouldClearAddress1(address1) || isIncompleteAddress1(address1)) {
+      address1 = ''
+    }
+
+    const trailingUnit = extractUnit(address1)
+    if (trailingUnit.unit) {
+      address1 = trailingUnit.street
+      address2 = mergeAddress2(address2, trailingUnit.unit)
+    }
+
+    row['Address 1'] = normalizeSpaces(address1)
+    row['Address 2'] = sanitizeAddress2(normalizeSpaces(address2))
+
+    for (const field of ['Address 1', 'Address 2', 'City', 'State', 'Zip Code'] as const) {
+      const before = beforeRow[field]
+      const after = row[field] ?? ''
+      if (before !== after) {
         changes.push({
           rowIndex: validation.rowIndex,
           ptkId,
