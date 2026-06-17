@@ -15,6 +15,18 @@ let cachedSchools: CeebSchoolRecord[] | null = null
 let cachedSupplements: Map<string, string> | null = null
 
 function referenceRoot(): string {
+  const candidates = [
+    path.join(process.cwd(), 'public', 'reference'),
+    path.join(process.cwd(), 'reference'),
+    path.join(process.cwd(), 'dist', 'reference'),
+  ]
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(path.join(candidate, 'ceeb-supplements.json'))) {
+      return candidate
+    }
+  }
+
   return path.join(process.cwd(), 'public', 'reference')
 }
 
