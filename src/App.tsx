@@ -17,6 +17,8 @@ import {
 import { applyAoiColumn, buildAoiLookup, loadCrosswalk } from './lib/aoiPrep'
 import { findAddressIssues, getAddressPreview } from './lib/addressCheck'
 import { applySmartyStandardization, cleanAddresses } from './lib/addressClean'
+import { cleanEmails } from './lib/emailClean'
+import { cleanNames } from './lib/nameClean'
 import { applyCeebPrep, loadBundledCeebLookup, resetCeebCaches } from './lib/ceebPrep'
 import {
   validateAddressesBatch,
@@ -212,12 +214,14 @@ export default function App() {
 
       const parsed = await parseImportFile(file)
       validatePtkHeaders(parsed.headers, detected)
-      const cleaned = cleanAddresses(parsed.rows)
+      const named = cleanNames(parsed.rows, parsed.headers)
+      const emailed = cleanEmails(named.rows, parsed.headers)
+      const cleaned = cleanAddresses(emailed.rows)
       setFileName(file.name)
       setCampusType(detected)
       setHeaders(parsed.headers)
       setRows(cleaned.rows)
-      setAddressChanges(cleaned.changes)
+      setAddressChanges([...named.changes, ...emailed.changes, ...cleaned.changes])
       setAddressChangesPage(1)
       setCeebChangesPage(1)
       setCeebStillMissingPage(1)
