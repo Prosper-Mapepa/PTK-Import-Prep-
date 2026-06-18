@@ -10,7 +10,8 @@ export async function parseImportFile(file: File): Promise<{
   const name = file.name.toLowerCase()
 
   if (name.endsWith('.csv')) {
-    return parseCsvText(new TextDecoder('utf-8').decode(buffer))
+    const text = new TextDecoder('utf-8').decode(buffer).replace(/^\uFEFF/, '')
+    return parseCsvText(text)
   }
 
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: false })
@@ -144,7 +145,8 @@ export function rowsToCsv(headers: string[], rows: PtkRow[]): string {
     headers.map(escape).join(','),
     ...rows.map((row) => headers.map((header) => escape(row[header] ?? '')).join(',')),
   ]
-  return lines.join('\r\n')
+  // UTF-8 BOM helps Excel open accented names correctly (Numbers auto-detects UTF-8).
+  return `\uFEFF${lines.join('\r\n')}`
 }
 
 export function downloadTextFile(content: string, fileName: string, mimeType: string) {

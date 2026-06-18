@@ -1,5 +1,5 @@
 import type { AddressCleanChange, PtkRow } from '../types'
-import { fixTextEncoding, isNameField } from './textEncoding'
+import { hasNonAsciiNameChars, isNameField, sanitizeNameChars } from './textEncoding'
 
 export function cleanNames(rows: PtkRow[], headers: string[]): {
   rows: PtkRow[]
@@ -18,7 +18,9 @@ export function cleanNames(rows: PtkRow[], headers: string[]): {
 
     for (const field of nameFields) {
       const before = row[field] ?? ''
-      const after = fixTextEncoding(before)
+      if (!hasNonAsciiNameChars(before)) continue
+
+      const after = sanitizeNameChars(before)
       if (before !== after) {
         nextRow[field] = after
         changes.push({
@@ -28,7 +30,7 @@ export function cleanNames(rows: PtkRow[], headers: string[]): {
           field,
           before,
           after,
-          action: 'Encoding fixed',
+          action: 'Accents removed',
         })
       }
     }
