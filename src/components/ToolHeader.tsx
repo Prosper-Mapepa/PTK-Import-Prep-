@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 type ToolHeaderProps = {
   title: string
-  description: string
+  description: ReactNode
   onHelp?: () => void
 }
 

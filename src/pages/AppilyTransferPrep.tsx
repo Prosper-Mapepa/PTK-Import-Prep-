@@ -194,7 +194,12 @@ export default function AppilyTransferPrep() {
 
       <ToolHeader
         title="Appily Transfer Inquiries"
-        description="Prepare Cappex transfer inquiry files for Slate — clean names, addresses, and emails, then fill <code>expected_transfer_term</code> with the next Fall."
+        description={
+          <>
+            Prepare Cappex transfer inquiry files for Slate — clean names, addresses, and emails,
+            then fill <code>expected_transfer_term</code> with the next Fall.
+          </>
+        }
         onHelp={() => setWelcomeOpen(true)}
       />
 
