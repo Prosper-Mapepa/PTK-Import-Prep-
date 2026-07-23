@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { BeforeAfter, ChangeLegend } from '../components/BeforeAfter'
 import { Loader } from '../components/Loader'
 import { StatCard } from '../components/StatCard'
@@ -17,6 +16,7 @@ import { downloadTextFile, parseImportFile, rowsToCsv } from '../appily/lib/file
 import { cleanNames } from '../appily/lib/nameClean'
 import { buildChangeGroups, paginateItems } from '../appily/lib/pagination'
 import type { AddressIssue, AppilyRow, ColumnMap, FieldChange } from '../appily/types'
+import { ToolHeader } from '../components/ToolHeader'
 
 type StepId = 'upload' | 'format' | 'export'
 
@@ -161,29 +161,11 @@ export default function AppilyGreenlightPrep() {
         note="Contract note: files paused after August 2025; deliveries resume July 2026. Upload manually/weekly."
       />
 
-      <header className="app-header">
-        <div className="app-header-top">
-          <div>
-            <Link to="/" className="back-home">
-              ← All categories
-            </Link>
-            <div className="brand-pill">CMU · Slate Import</div>
-          </div>
-          <button
-            type="button"
-            className="btn-help"
-            onClick={() => setWelcomeOpen(true)}
-            aria-label="How this app works"
-          >
-            How it works
-          </button>
-        </div>
-        <h1>College Greenlight Inquiries</h1>
-        <p>
-          Prepare Cappex College Greenlight inquiry files for Slate — scan and clean names,
-          addresses, and emails, then export for weekly upload.
-        </p>
-      </header>
+      <ToolHeader
+        title="College Greenlight Inquiries"
+        description="Prepare Cappex College Greenlight inquiry files for Slate — scan and clean names, addresses, and emails, then export for weekly upload."
+        onHelp={() => setWelcomeOpen(true)}
+      />
 
       <StepProgress steps={STEPS} currentIndex={stepIndex} />
 

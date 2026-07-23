@@ -57,11 +57,11 @@ a {
 .app-shell {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 2rem 2rem 3rem;
+  padding: 1.5rem 2rem 2.5rem;
 }
 
 .app-header {
-  margin-bottom: 2rem;
+  margin-bottom: 1.35rem;
 }
 
 .brand-pill {
@@ -72,6 +72,10 @@ a {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.app-header-top .brand-pill {
+  margin-bottom: 0;
 }
 
 .app-header h1 {
@@ -97,8 +101,8 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 1.75rem;
-  padding: 1.35rem 1.5rem 1.1rem;
+  margin-bottom: 1.25rem;
+  padding: 1.1rem 1.35rem 0.95rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -108,7 +112,7 @@ a {
 
 .step-progress-rail {
   position: absolute;
-  top: calc(1.35rem + 16px);
+  top: calc(1.1rem + 16px);
   left: 2.5rem;
   right: 2.5rem;
   height: 2px;
@@ -188,12 +192,12 @@ a {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 2rem 2.25rem;
+  padding: 1.5rem 1.75rem;
   box-shadow: var(--shadow);
 }
 
 .card-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.1rem;
 }
 
 .card-header h2 {
@@ -228,7 +232,7 @@ a {
   position: relative;
   border: 1px dashed #d5dde8;
   border-radius: var(--radius);
-  padding: 2.5rem 2rem;
+  padding: 1.25rem 1.5rem;
   text-align: center;
   background: #fbfcfd;
   transition: border-color 0.15s, background 0.15s;
@@ -260,30 +264,47 @@ a {
 }
 
 .upload-icon {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 0.75rem;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 0.45rem;
   color: var(--text-soft);
 }
 
 .upload-title {
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.15rem;
   font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .upload-zone .upload-hint {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
+}
+
+.upload-filename-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.65rem auto 0;
+  max-width: 28rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  background: #f7f3f0;
+  border: 1px solid rgba(122, 31, 53, 0.1);
+  border-radius: 8px;
 }
 
 .upload-hint-tag {
   display: inline-block;
-  padding: 0.12rem 0.45rem;
-  border-radius: 4px;
-  font-size: 0.78rem;
-  font-weight: 600;
+  padding: 0.16rem 0.45rem;
+  border-radius: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
   letter-spacing: 0.03em;
   background: var(--green-bg);
   color: var(--green-text);
@@ -1100,28 +1121,41 @@ a {
 
 .app-header-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
 }
 
 .back-home {
-  display: inline-block;
-  margin-bottom: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
   text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
 .back-home:hover {
   color: var(--accent);
+  border-color: #c4b4ba;
 }
 
 .btn-help {
   flex-shrink: 0;
-  margin-top: 0.15rem;
+  margin: 0;
   padding: 0.4rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 600;
@@ -1525,7 +1559,7 @@ code {
   position: fixed;
   inset: 0;
   margin: auto;
-  width: min(480px, calc(100vw - 2rem));
+  width: min(540px, calc(100vw - 2rem));
   max-height: calc(100vh - 2rem);
   overflow: auto;
   padding: 0;
@@ -1588,9 +1622,53 @@ code {
   font-size: 0.82rem;
   line-height: 1.5;
   color: var(--text-muted);
-  background: #f8fafc;
-  border: 1px solid var(--border);
+  background: #f7f3f0;
+  border: 1px solid rgba(122, 31, 53, 0.1);
   border-radius: 8px;
+}
+
+.welcome-file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0 0 1.35rem;
+  padding: 0.9rem 1rem;
+  background: #f7f3f0;
+  border: 1px solid rgba(122, 31, 53, 0.1);
+  border-radius: 10px;
+}
+
+.welcome-file-meta-note {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.welcome-file-pattern-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.welcome-file-pattern-value {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .welcome-modal-actions {

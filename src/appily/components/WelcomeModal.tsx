@@ -7,7 +7,8 @@ type WelcomeModalProps = {
   title: string
   lead: string
   steps: string[]
-  note: string
+  note?: string
+  filePattern?: string
 }
 
 export function isWelcomeDismissed(storageKey: string): boolean {
@@ -26,6 +27,29 @@ export function dismissWelcome(storageKey: string): void {
   }
 }
 
+function splitNote(note?: string, filePattern?: string): { text?: string; pattern?: string } {
+  if (filePattern) return { text: note, pattern: filePattern }
+  if (!note) return {}
+
+  const direct = note.match(/^(?:Expected file name pattern|File pattern):\s*(.+)$/i)
+  if (direct) return { pattern: direct[1].trim() }
+
+  const embedded = note.match(/^(.*?)\s*File pattern:\s*(.+)$/i)
+  if (embedded) {
+    return {
+      text: embedded[1].trim().replace(/\.$/, '') || undefined,
+      pattern: embedded[2].trim(),
+    }
+  }
+
+  return { text: note }
+}
+
+/** Prefer wrapping after underscores in long filenames. */
+function formatFilePattern(pattern: string): string {
+  return pattern.replace(/_/g, '_\u200b')
+}
+
 export function WelcomeModal({
   open,
   onClose,
@@ -34,8 +58,10 @@ export function WelcomeModal({
   lead,
   steps,
   note,
+  filePattern,
 }: WelcomeModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const { text, pattern } = splitNote(note, filePattern)
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -73,7 +99,17 @@ export function WelcomeModal({
           ))}
         </ol>
 
-        <p className="welcome-modal-note">{note}</p>
+        {(text || pattern) && (
+          <div className="welcome-file-meta">
+            {text && <p className="welcome-file-meta-note">{text}</p>}
+            {pattern && (
+              <>
+                <span className="welcome-file-pattern-label">Expected file name pattern</span>
+                <code className="welcome-file-pattern-value">{formatFilePattern(pattern)}</code>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="welcome-modal-actions">
           <button type="button" className="btn btn-primary" onClick={handleClose}>

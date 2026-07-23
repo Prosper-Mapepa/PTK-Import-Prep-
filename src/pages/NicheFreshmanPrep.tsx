@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   WelcomeModal,
   isWelcomeDismissed,
@@ -29,6 +28,7 @@ import {
 } from '../niche/lib/nicheCeeb'
 import { splitNicheByProspectiveType } from '../niche/lib/nichePrep'
 import type { NicheColumnMap, NicheFieldChange, NicheRow } from '../niche/types'
+import { ToolHeader } from '../components/ToolHeader'
 
 const NICHE_FRESHMAN_WELCOME_KEY = 'niche-freshman-welcome-dismissed'
 
@@ -269,24 +269,11 @@ export default function NicheFreshmanPrep() {
         note="Upload is manual/weekly. Transfer rows are exported separately for the Niche Transfer Inquiries source."
       />
 
-      <header className="app-header">
-        <div className="app-header-top">
-          <div>
-            <Link to="/" className="back-home">
-              ← All categories
-            </Link>
-            <div className="brand-pill">CMU · Slate Import</div>
-          </div>
-          <button type="button" className="btn-help" onClick={() => setWelcomeOpen(true)}>
-            How it works
-          </button>
-        </div>
-        <h1>Niche Freshman Inquiries</h1>
-        <p>
-          Prepare Niche freshman inquiry files — split out transfers, clean formatting, pad ZIP/CEEB
-          zeros, and fill missing high school CEEB codes.
-        </p>
-      </header>
+      <ToolHeader
+        title="Niche Freshman Inquiries"
+        description="Prepare Niche freshman inquiry files — split out transfers, clean formatting, pad ZIP/CEEB zeros, and fill missing high school CEEB codes."
+        onHelp={() => setWelcomeOpen(true)}
+      />
 
       <StepProgress steps={STEPS} currentIndex={stepIndex} />
 

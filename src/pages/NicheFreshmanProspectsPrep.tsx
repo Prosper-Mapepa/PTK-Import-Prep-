@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { WelcomeModal, isWelcomeDismissed } from '../appily/components/WelcomeModal'
 import { cleanAddresses, findAddressIssues, getAddressPreview } from '../appily/lib/addressClean'
 import { cleanEmails } from '../appily/lib/emailClean'
@@ -26,6 +25,7 @@ import {
 } from '../niche/lib/nicheCeeb'
 import { applyNicheProspectsAoi } from '../niche/lib/prospectsAoi'
 import type { NicheColumnMap, NicheFieldChange, NicheRow } from '../niche/types'
+import { ToolHeader } from '../components/ToolHeader'
 
 const NICHE_PROSPECTS_WELCOME_KEY = 'niche-freshman-prospects-welcome-dismissed'
 
@@ -275,24 +275,11 @@ export default function NicheFreshmanProspectsPrep() {
         note="Upload is manual/weekly. Both Bulk and Cross Interest files share the same layout."
       />
 
-      <header className="app-header">
-        <div className="app-header-top">
-          <div>
-            <Link to="/" className="back-home">
-              ← All categories
-            </Link>
-            <div className="brand-pill">CMU · Slate Import</div>
-          </div>
-          <button type="button" className="btn-help" onClick={() => setWelcomeOpen(true)}>
-            How it works
-          </button>
-        </div>
-        <h1>Niche Freshman Prospects</h1>
-        <p>
-          Prepare Niche freshman prospect files — clean formatting, map CMU AOI from MajorCIP, and
-          fill HighSchoolCEEB.
-        </p>
-      </header>
+      <ToolHeader
+        title="Niche Freshman Prospects"
+        description="Prepare Niche freshman prospect files — clean formatting, map CMU AOI from MajorCIP, and fill HighSchoolCEEB."
+        onHelp={() => setWelcomeOpen(true)}
+      />
 
       <StepProgress steps={STEPS} currentIndex={stepIndex} />
 

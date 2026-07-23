@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { WelcomeModal, isWelcomeDismissed } from '../appily/components/WelcomeModal'
 import { cleanAddresses, findAddressIssues, getAddressPreview } from '../appily/lib/addressClean'
 import { cleanEmails } from '../appily/lib/emailClean'
@@ -30,6 +29,7 @@ import {
 } from '../niche/lib/nichePrep'
 import { applyNicheProspectsAoi } from '../niche/lib/prospectsAoi'
 import type { NicheColumnMap, NicheFieldChange, NicheRow } from '../niche/types'
+import { ToolHeader } from '../components/ToolHeader'
 
 const NICHE_TRANSFER_PROSPECTS_WELCOME_KEY = 'niche-transfer-prospects-welcome-dismissed'
 const FALL_START = nextFallEnrollmentDate()
@@ -299,24 +299,11 @@ export default function NicheTransferProspectsPrep() {
         note="Upload is manual. Slate source format: Niche Transfer Prospects."
       />
 
-      <header className="app-header">
-        <div className="app-header-top">
-          <div>
-            <Link to="/" className="back-home">
-              ← All categories
-            </Link>
-            <div className="brand-pill">CMU · Slate Import</div>
-          </div>
-          <button type="button" className="btn-help" onClick={() => setWelcomeOpen(true)}>
-            How it works
-          </button>
-        </div>
-        <h1>Niche Transfer Prospects</h1>
-        <p>
-          Prepare Niche transfer prospect files — map CMU AOI, fill CollegeCEEB, and fix past
-          IntendedTransferDate values.
-        </p>
-      </header>
+      <ToolHeader
+        title="Niche Transfer Prospects"
+        description="Prepare Niche transfer prospect files — map CMU AOI, fill CollegeCEEB, and fix past IntendedTransferDate values."
+        onHelp={() => setWelcomeOpen(true)}
+      />
 
       <StepProgress steps={STEPS} currentIndex={stepIndex} />
 

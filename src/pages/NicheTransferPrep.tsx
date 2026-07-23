@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { WelcomeModal, isWelcomeDismissed } from '../appily/components/WelcomeModal'
 import { cleanAddresses, findAddressIssues, getAddressPreview } from '../appily/lib/addressClean'
 import { cleanEmails } from '../appily/lib/emailClean'
@@ -30,6 +29,7 @@ import {
   removeNicheCmuStudents,
 } from '../niche/lib/nichePrep'
 import type { NicheColumnMap, NicheFieldChange, NicheRow } from '../niche/types'
+import { ToolHeader } from '../components/ToolHeader'
 
 const NICHE_TRANSFER_WELCOME_KEY = 'niche-transfer-welcome-dismissed'
 const FALL_START = nextFallEnrollmentDate()
@@ -260,24 +260,11 @@ export default function NicheTransferPrep() {
         note="Upload is manual/weekly. File pattern: Central_Michigan_University_Transfer_inquiries_YYYY_MM_DD.csv"
       />
 
-      <header className="app-header">
-        <div className="app-header-top">
-          <div>
-            <Link to="/" className="back-home">
-              ← All categories
-            </Link>
-            <div className="brand-pill">CMU · Slate Import</div>
-          </div>
-          <button type="button" className="btn-help" onClick={() => setWelcomeOpen(true)}>
-            How it works
-          </button>
-        </div>
-        <h1>Niche Transfer Inquiries</h1>
-        <p>
-          Prepare Niche transfer inquiry files — remove CMU students, clean formatting, fill
-          CollegeCEEB, and fix TransferEnrollmentDate.
-        </p>
-      </header>
+      <ToolHeader
+        title="Niche Transfer Inquiries"
+        description="Prepare Niche transfer inquiry files — remove CMU students, clean formatting, fill CollegeCEEB, and fix TransferEnrollmentDate."
+        onHelp={() => setWelcomeOpen(true)}
+      />
 
       <StepProgress steps={STEPS} currentIndex={stepIndex} />
 

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { BeforeAfter, ChangeLegend } from '../components/BeforeAfter'
 import { TablePagination } from '../components/TablePagination'
 import { buildAddressChangeGroups, getPageCount, paginateItems } from '../lib/pagination'
@@ -25,6 +24,7 @@ import {
   validateAddressesBatch,
   type SmartyValidationResult,
 } from '../lib/smartyValidation'
+import { ToolHeader } from '../components/ToolHeader'
 import {
   detectCampusType,
   downloadTextFile,
@@ -468,21 +468,10 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div className="app-header-top">
-          <div>
-            <Link to="/" className="back-home">
-              ← All categories
-            </Link>
-            <div className="brand-pill">CMU · Slate Import</div>
-          </div>
-        </div>
-        <h1>PTK Import Prep</h1>
-        <p>
-          Prepare monthly Phi Theta Kappa files for Slate — clean addresses, fill CEEB
-          codes, and export a ready-to-upload CSV in minutes.
-        </p>
-      </header>
+      <ToolHeader
+        title="PTK Import Prep"
+        description="Prepare monthly Phi Theta Kappa files for Slate — clean addresses, fill CEEB codes, and export a ready-to-upload CSV in minutes."
+      />
 
       <StepProgress steps={steps} currentIndex={stepIndex} />
 
@@ -590,12 +579,13 @@ export default function App() {
                   />
                 </svg>
                 <p className="upload-title">PTK import file</p>
-                <p className="upload-hint">
-                  Drag and drop here, or click to browse
-                  <br />
-                  CSV or Excel · include{' '}
-                  <span className="upload-hint-tag">MAIN CAMPUS</span> or{' '}
-                  <span className="upload-hint-tag">ONLINE</span> in the filename
+                <p className="upload-hint">Drag and drop here, or click to browse</p>
+                <p className="upload-filename-hint">
+                  CSV or Excel · include
+                  <span className="upload-hint-tag">MAIN CAMPUS</span>
+                  or
+                  <span className="upload-hint-tag">ONLINE</span>
+                  in the filename
                 </p>
               </div>
             )}

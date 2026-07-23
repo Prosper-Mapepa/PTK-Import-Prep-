@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { BeforeAfter, ChangeLegend } from '../components/BeforeAfter'
 import { Loader, ProgressBar } from '../components/Loader'
 import { SourceBadge } from '../components/SourceBadge'
@@ -32,6 +31,7 @@ import {
 } from '../appily/lib/prospectsPrep'
 import { getNextUpcomingFallTerm } from '../appily/lib/startTerm'
 import type { AddressIssue, AppilyRow, ColumnMap, FieldChange } from '../appily/types'
+import { ToolHeader } from '../components/ToolHeader'
 
 type StepId = 'upload' | 'format' | 'ceeb' | 'transfer-term' | 'export'
 
@@ -250,29 +250,11 @@ export default function AppilyTransferProspectsPrep() {
         note="Source format: Appily - Transfer Prospects (Cappex). Delivered monthly."
       />
 
-      <header className="app-header">
-        <div className="app-header-top">
-          <div>
-            <Link to="/" className="back-home">
-              ← All categories
-            </Link>
-            <div className="brand-pill">CMU · Slate Import</div>
-          </div>
-          <button
-            type="button"
-            className="btn-help"
-            onClick={() => setWelcomeOpen(true)}
-            aria-label="How this app works"
-          >
-            How it works
-          </button>
-        </div>
-        <h1>Appily Transfer Prospects</h1>
-        <p>
-          Prepare Cappex transfer prospect files — remove CMU students, clean formatting,
-          add CEEB codes, and fix past/blank transfer terms.
-        </p>
-      </header>
+      <ToolHeader
+        title="Appily Transfer Prospects"
+        description="Prepare Cappex transfer prospect files — remove CMU students, clean formatting, add CEEB codes, and fix past/blank transfer terms."
+        onHelp={() => setWelcomeOpen(true)}
+      />
 
       <StepProgress steps={STEPS} currentIndex={stepIndex} />
 
