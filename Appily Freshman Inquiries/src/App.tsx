@@ -1,0 +1,549 @@
+import { useMemo, useRef, useState } from 'react'
+import { BeforeAfter, ChangeLegend } from './components/BeforeAfter'
+import { Loader } from './components/Loader'
+import { StatCard } from './components/StatCard'
+import { StepProgress } from './components/StepProgress'
+import { TablePagination } from './components/TablePagination'
+import { WelcomeModal, isWelcomeDismissed } from './components/WelcomeModal'
+import { cleanAddresses, findAddressIssues, getAddressPreview } from './lib/addressClean'
+import { resolveColumns, validateAppilyHeaders } from './lib/columns'
+import { cleanEmails } from './lib/emailClean'
+import {
+  downloadTextFile,
+  isCappexFileName,
+  parseImportFile,
+  rowsToCsv,
+} from './lib/fileUtils'
+import { cleanNames } from './lib/nameClean'
+import { buildChangeGroups, paginateItems } from './lib/pagination'
+import { applyPredictedStartTerms } from './lib/startTerm'
+import type { AddressIssue, AppilyRow, ColumnMap, FieldChange } from './types'
+
+type StepId = 'upload' | 'format' | 'start-term' | 'export'
+
+const STEPS: { id: StepId; label: string }[] = [
+  { id: 'upload', label: 'Upload' },
+  { id: 'format', label: 'Format scan' },
+  { id: 'start-term', label: 'Start term' },
+  { id: 'export', label: 'Export' },
+]
+
+const FILE_RE = /\.csv$/i
+
+function isAppilyFile(file: File) {
+  return FILE_RE.test(file.name)
+}
+
+export default function App() {
+  const [step, setStep] = useState<StepId>('upload')
+  const [fileName, setFileName] = useState('')
+  const [headers, setHeaders] = useState<string[]>([])
+  const [rows, setRows] = useState<AppilyRow[]>([])
+  const [columns, setColumns] = useState<ColumnMap | null>(null)
+  const [formatChanges, setFormatChanges] = useState<FieldChange[]>([])
+  const [addressIssues, setAddressIssues] = useState<AddressIssue[]>([])
+  const [termChanges, setTermChanges] = useState<FieldChange[]>([])
+  const [formatPage, setFormatPage] = useState(1)
+  const [issuesPage, setIssuesPage] = useState(1)
+  const [termPage, setTermPage] = useState(1)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [welcomeOpen, setWelcomeOpen] = useState(() => !isWelcomeDismissed())
+  const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dragCounter = useRef(0)
+
+  const stepIndex = STEPS.findIndex((item) => item.id === step)
+
+  const exportFileName = useMemo(() => {
+    if (!fileName) return 'appily-prepared.csv'
+    const base = fileName.replace(/\.csv$/i, '')
+    return `${base}_prepared.csv`
+  }, [fileName])
+
+  const formatGroups = useMemo(
+    () => buildChangeGroups(formatChanges, formatPage),
+    [formatChanges, formatPage],
+  )
+  const pagedIssues = useMemo(
+    () => paginateItems(addressIssues, issuesPage),
+    [addressIssues, issuesPage],
+  )
+  const termGroups = useMemo(
+    () => buildChangeGroups(termChanges, termPage),
+    [termChanges, termPage],
+  )
+
+  async function handleUpload(file: File) {
+    if (!isAppilyFile(file)) {
+      setError('Please upload a Cappex CSV file (.csv).')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const parsed = await parseImportFile(file)
+      const mapped = resolveColumns(parsed.headers)
+      validateAppilyHeaders(mapped)
+
+      if (!isCappexFileName(file.name)) {
+        // Soft warning only — still allow upload
+        console.warn('File name does not match the usual Cappex pattern.')
+      }
+
+      const named = cleanNames(parsed.rows, mapped)
+      const emailed = cleanEmails(named.rows, mapped)
+      const addressed = cleanAddresses(emailed.rows, mapped)
+      const termed = applyPredictedStartTerms(addressed.rows, mapped)
+      const issues = findAddressIssues(termed.rows, mapped)
+
+      const allChanges = [...named.changes, ...emailed.changes, ...addressed.changes]
+
+      setFileName(file.name)
+      setHeaders(parsed.headers)
+      setColumns(mapped)
+      setRows(termed.rows)
+      setFormatChanges(allChanges)
+      setAddressIssues(issues)
+      setTermChanges(termed.changes)
+      setFormatPage(1)
+      setIssuesPage(1)
+      setTermPage(1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to read the file.')
+      setFileName('')
+      setHeaders([])
+      setRows([])
+      setColumns(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleContinue() {
+    if (step === 'upload') {
+      if (!fileName || rows.length === 0) {
+        setError('Upload a Cappex CSV before continuing.')
+        return
+      }
+      setError('')
+      setStep('format')
+      return
+    }
+
+    if (step === 'format') {
+      setStep('start-term')
+      return
+    }
+
+    if (step === 'start-term') {
+      setStep('export')
+    }
+  }
+
+  function handleBack() {
+    const prev = STEPS[stepIndex - 1]
+    if (prev) setStep(prev.id)
+  }
+
+  function handleReset() {
+    setStep('upload')
+    setFileName('')
+    setHeaders([])
+    setRows([])
+    setColumns(null)
+    setFormatChanges([])
+    setAddressIssues([])
+    setTermChanges([])
+    setFormatPage(1)
+    setIssuesPage(1)
+    setTermPage(1)
+    setError('')
+  }
+
+  function handleExport() {
+    const csv = rowsToCsv(headers, rows)
+    downloadTextFile(csv, exportFileName, 'text/csv;charset=utf-8')
+  }
+
+  return (
+    <div className="app-shell">
+      <WelcomeModal open={welcomeOpen} onClose={() => setWelcomeOpen(false)} />
+
+      <header className="app-header">
+        <div className="app-header-top">
+          <div className="brand-pill">CMU · Slate Import</div>
+          <button
+            type="button"
+            className="btn-help"
+            onClick={() => setWelcomeOpen(true)}
+            aria-label="How this app works"
+          >
+            How it works
+          </button>
+        </div>
+        <h1>Appily Freshman Inquiries</h1>
+        <p>
+          Prepare Cappex freshmen inquiry files for Slate — clean names, addresses, and
+          emails, then set predicted start term from HS graduation year.
+        </p>
+      </header>
+
+      <StepProgress steps={STEPS} currentIndex={stepIndex} />
+
+      <section className="card">
+        {step === 'upload' && (
+          <>
+            <div className="card-header">
+              <h2>Upload Cappex file</h2>
+              <p>
+                Upload the Appily Freshmen Inquiries CSV. Expected name pattern:{' '}
+                <code>Central_Michigan_University_169248_YYYY_MM_DD_##_##_##_cappex.csv</code>
+              </p>
+            </div>
+
+            {fileName ? (
+              <div className={`upload-result${loading ? ' upload-result-busy' : ''}`}>
+                {loading && <Loader message="Reading file…" variant="overlay" size="sm" />}
+                <div
+                  className="upload-card"
+                  onClick={() => {
+                    if (!loading) fileInputRef.current?.click()
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      fileInputRef.current?.click()
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Replace uploaded file"
+                >
+                  <div className="upload-card-top">
+                    <span className="upload-file-check" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M16.5 5.5L8 14L3.5 9.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <p className="upload-file-name" title={fileName}>
+                      {fileName}
+                    </p>
+                    <span className="upload-file-action">Replace</span>
+                  </div>
+                  <p className="upload-card-meta">
+                    <span className="upload-meta-tag upload-meta-campus main">
+                      {rows.length.toLocaleString()} rows
+                    </span>
+                    <span className="upload-meta-tag">{headers.length} columns</span>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={`upload-zone${dragActive ? ' upload-zone-drag' : ''}${loading ? ' upload-result-busy' : ''}`}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    fileInputRef.current?.click()
+                  }
+                }}
+                onDragEnter={(event) => {
+                  event.preventDefault()
+                  dragCounter.current += 1
+                  setDragActive(true)
+                }}
+                onDragLeave={(event) => {
+                  event.preventDefault()
+                  dragCounter.current -= 1
+                  if (dragCounter.current <= 0) {
+                    dragCounter.current = 0
+                    setDragActive(false)
+                  }
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  dragCounter.current = 0
+                  setDragActive(false)
+                  const file = event.dataTransfer.files?.[0]
+                  if (file) void handleUpload(file)
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload Cappex CSV"
+              >
+                {loading && <Loader message="Reading file…" variant="overlay" size="sm" />}
+                <svg className="upload-icon" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                  <path
+                    d="M20 28V12M20 12L14 18M20 12L26 18M10 28H30"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <p className="upload-title">Drop Cappex CSV here, or click to browse</p>
+                <p className="upload-hint">Appily – Freshmen Inquiries (Cappex) · .csv only</p>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) void handleUpload(file)
+                event.target.value = ''
+              }}
+            />
+          </>
+        )}
+
+        {step === 'format' && columns && (
+          <>
+            <div className="card-header">
+              <h2>Format scan</h2>
+              <p>
+                Improper formatting in names, addresses, and emails was cleaned automatically.
+                Review changes below before continuing.
+              </p>
+            </div>
+
+            <div className="stats-grid">
+              <StatCard value={rows.length} label="Students" />
+              <StatCard
+                value={formatChanges.length}
+                label="Format fixes"
+                highlight={formatChanges.length ? 'resolved' : 'none'}
+              />
+              <StatCard
+                value={addressIssues.length}
+                label="Addresses to review"
+                highlight={addressIssues.length ? 'flagged' : 'none'}
+              />
+            </div>
+
+            {formatChanges.length > 0 ? (
+              <div className="section-block">
+                <div className="section-heading">
+                  <h3 className="section-title">Changes made</h3>
+                  <ChangeLegend />
+                </div>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Field</th>
+                        <th>Change</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formatGroups.map(({ change, groupIndex }) => (
+                        <tr key={`${change.rowIndex}-${change.field}-${change.before}`} className={groupIndex % 2 ? 'row-alt' : ''}>
+                          <td>{change.rowId}</td>
+                          <td>{change.name || '—'}</td>
+                          <td>{change.field}</td>
+                          <td>
+                            <BeforeAfter before={change.before} after={change.after} />
+                          </td>
+                          <td>{change.action}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePagination
+                  page={formatPage}
+                  total={formatChanges.length}
+                  onPageChange={setFormatPage}
+                  noun="changes"
+                />
+              </div>
+            ) : (
+              <p className="empty-state">No name, address, or email formatting issues found.</p>
+            )}
+
+            {addressIssues.length > 0 && (
+              <div className="section-block">
+                <h3 className="section-title">Addresses still needing review</h3>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Address</th>
+                        <th>Issues</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedIssues.map((issue) => (
+                        <tr key={issue.rowIndex}>
+                          <td>{issue.rowId}</td>
+                          <td>{issue.name || '—'}</td>
+                          <td>{getAddressPreview(rows[issue.rowIndex], columns)}</td>
+                          <td>{issue.issues.join('; ')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePagination
+                  page={issuesPage}
+                  total={addressIssues.length}
+                  onPageChange={setIssuesPage}
+                  noun="issues"
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {step === 'start-term' && columns && (
+          <>
+            <div className="card-header">
+              <h2>Predicted start term</h2>
+              <p>
+                <code>predicted_start_term</code> is set to the next fall from each student&apos;s{' '}
+                <code>high_school_grad_date</code> (e.g. <strong>6/1/2027 → Fall 2027</strong>).
+              </p>
+            </div>
+
+            <div className="stats-grid">
+              <StatCard value={rows.length} label="Students" />
+              <StatCard
+                value={termChanges.length}
+                label="Start terms updated"
+                highlight={termChanges.length ? 'resolved' : 'none'}
+              />
+              <StatCard
+                value={rows.length - termChanges.length}
+                label="Already correct / skipped"
+              />
+            </div>
+
+            {termChanges.length > 0 ? (
+              <div className="section-block">
+                <div className="section-heading">
+                  <h3 className="section-title">Start term updates</h3>
+                  <ChangeLegend />
+                </div>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Change</th>
+                        <th>Source</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {termGroups.map(({ change, groupIndex }) => (
+                        <tr
+                          key={`${change.rowIndex}-${change.before}`}
+                          className={groupIndex % 2 ? 'row-alt' : ''}
+                        >
+                          <td>{change.rowId}</td>
+                          <td>{change.name || '—'}</td>
+                          <td>
+                            <BeforeAfter before={change.before} after={change.after} />
+                          </td>
+                          <td>{change.action}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePagination
+                  page={termPage}
+                  total={termChanges.length}
+                  onPageChange={setTermPage}
+                  noun="updates"
+                />
+              </div>
+            ) : (
+              <p className="empty-state">
+                All predicted start terms already match Fall of the HS grad year, or no valid
+                grad years were found.
+              </p>
+            )}
+          </>
+        )}
+
+        {step === 'export' && (
+          <>
+            <div className="card-header">
+              <h2>Export for Slate</h2>
+              <p>
+                Download the prepared Cappex CSV, then upload it manually in Slate using the
+                Appily Freshmen Inquiries source format.
+              </p>
+            </div>
+
+            <div className="stats-grid">
+              <StatCard value={rows.length} label="Students ready" highlight="resolved" />
+              <StatCard
+                value={formatChanges.length}
+                label="Format fixes"
+                highlight={formatChanges.length ? 'resolved' : 'none'}
+              />
+              <StatCard
+                value={termChanges.length}
+                label="Start terms set"
+                highlight={termChanges.length ? 'resolved' : 'none'}
+              />
+            </div>
+
+            <div className="export-actions" style={{ marginTop: '1.5rem' }}>
+              <button type="button" className="btn btn-primary" onClick={handleExport}>
+                Download prepared CSV
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={handleReset}>
+                Start over
+              </button>
+            </div>
+          </>
+        )}
+
+        {error && <p className="alert alert-error">{error}</p>}
+
+        {step !== 'export' && (
+          <div className="card-footer">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={handleBack}
+              disabled={stepIndex === 0 || loading}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleContinue}
+              disabled={loading || (step === 'upload' && !fileName)}
+            >
+              Continue
+            </button>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}

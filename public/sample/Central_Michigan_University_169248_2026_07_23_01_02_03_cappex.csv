@@ -1,0 +1,4 @@
+inquiry_product,first_name,last_name,email_address,birth_date,gender,address_1,address_2,foreign_address,city,state_abbr,zip_code,country,high_school_grad_date,predicted_start_term,hs_gpa,hs_name,ceeb_code,major_1,major_2,major_3
+Cappex,Jose,Garcia,jose@gmail.con,12/5/2008,M,8000 Oakdell Way Apt 1021,,,Austin,TX,78759,USA,6/1/2027,,4,Test High School,123456,Accounting,,
+Cappex,Renée,O'Brien,renee@yahoo.com,10/16/2008,F,241,,,Lansing,MI,48933,USA,5/1/2028,Spring 2028,3.5,,,Education,,
+Cappex,Kimone,Elizabeth,kimone@cmu.edu,8/25/2009,F,123 Main St,Unit 4,,Mount Pleasant,MI,48858,USA,6/1/2029,Fall 2029,3.6,Central High School,234567,,,,

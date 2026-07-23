@@ -1,28 +1,61 @@
-# PTK Slate Import Prep
+# CMU Slate File Prep
 
-A simple step-by-step app for preparing Phi Theta Kappa (PTK) import files before manual upload to Slate (Technolutions).
+Landing hub for preparing inquiry files before manual upload to Slate (Technolutions).
 
-## What it does
+## Categories
 
-### Main Campus
-1. Spot check and clean addresses
-2. Fill missing CEEB codes (Excel reference, then College Board online) and pad to four digits
-3. Add **CMU AOI** after **Current Major Code** (2025 MajorCIP to AOI crosswalk)
-4. Add **Start Term** after **Expected Graduation Date** (from the file name)
-5. Export prepared CSV
+| Route | Tool | Source |
+|-------|------|--------|
+| `/` | Landing page | — |
+| `/ptk` | **PTK Import Prep** | Phi Theta Kappa (Team Dynamix) |
+| `/appily` | **Appily Freshman Inquiries** | Appily / Cappex freshmen |
+| `/appily-transfer` | **Appily Transfer Inquiries** | Appily / Cappex transfers (SFTP weekly) |
+| `/appily-greenlight` | **College Greenlight Inquiries** | Appily / Cappex Greenlight (SFTP weekly) |
+| `/appily-prospects` | **Appily Transfer Prospects** | Appily / Cappex prospects (SFTP monthly) |
+| `/niche-freshman` | **Niche Freshman Inquiries** | Niche (SFTP incoming/niche, weekly) |
+| `/niche-transfer` | **Niche Transfer Inquiries** | Niche Transfer (SFTP incoming/niche, weekly) |
 
-### Global Campus (Online)
-1. Spot check and clean addresses
-2. Fill missing CEEB codes and pad to four digits
-3. Export prepared CSV
+### PTK Import Prep (`/ptk`)
+- Clean addresses, names, and emails
+- Fill missing CEEB codes and pad to four digits
+- Main campus: add CMU AOI and Start Term
+- Export Slate-ready CSV
 
-### CEEB codes
-1. Looks up missing codes in the bundled Excel reference (exact + fuzzy match)
-2. Searches College Board online for any still missing (via `npm run dev` or `npm run preview`)
-3. Pads all codes to four digits; treats 5+ digit values as invalid (often IPEDS, not CEEB)
-4. Use **Rerun CEEB search** on the CEEB step to retry Excel + online lookup
+### Appily Freshman Inquiries (`/appily`)
+- Scan/fix names, addresses, and emails
+- Set `predicted_start_term` from `high_school_grad_date` (e.g. `6/1/2027` → `Fall 2027`)
+- Export Slate-ready Cappex CSV
 
-Online CEEB search requires running the app locally so the built-in search API can reach College Board.
+### Appily Transfer Inquiries (`/appily-transfer`)
+- Scan/fix names, addresses, and emails
+- Fill entire `expected_transfer_term` column with the next upcoming Fall
+- After Slate upload: Remap → Prompt Value Mappings
+- Contract note: files paused Nov 2025 – Jul 2026
+
+### College Greenlight Inquiries (`/appily-greenlight`)
+- Scan/fix names, addresses, and emails
+- After Slate upload: Remap → Prompt Value Mappings
+- Contract note: files paused Aug 2025 – Jul 2026
+
+### Appily Transfer Prospects (`/appily-prospects`)
+- Remove students currently at Central Michigan University
+- Scan/fix names, addresses, emails; pad ZIP codes
+- Add `ceeb_code` after `current_college_name` and fill CEEB codes
+- Fix blank/past `expected_transfer_term` → next Fall
+- Manual monthly upload
+
+### Niche Freshman Inquiries (`/niche-freshman`)
+- Split `ProspectiveType` = Transfer Student into a separate file
+- Scan/fix names, addresses, emails; pad ZIP and HighSchoolCEEB zeros
+- Fill missing HighSchoolCEEB (reference + College Board)
+- After upload: Remap → Value Mappings; Retroactive Refresh if needed
+
+### Niche Transfer Inquiries (`/niche-transfer`)
+- Remove students with `CollegeName` = Central Michigan University
+- Scan/fix names, addresses, emails; pad ZIP and CollegeCEEB zeros
+- Fill missing CollegeCEEB (reference + College Board)
+- Fix `TransferEnrollmentDate` when blank, past, or more than 2 years out → next Fall start
+- After upload: Remap → Value Mappings; Retroactive Refresh if needed
 
 ## Setup
 
@@ -31,23 +64,15 @@ npm install
 npm run dev
 ```
 
-Open the local URL shown in the terminal (usually `http://localhost:5173`).
-
-## Files you need
-
-- Monthly PTK import file (CSV or Excel). The file name should include `MAIN CAMPUS` or `ONLINE`.
-
-Reference files are bundled in `public/reference/`:
-- `CEEB codes frequently missing.xlsx`
-- `2025 MajorCIP to AOI crosswalk.xlsx`
+Open the local URL (usually `http://localhost:5173`).
 
 ## Slate upload
 
-After export, upload the CSV manually in Slate using:
-- **PTK Import – Main Campus**, or
-- **PTK Import – Global Campus**
-
-## CEEB code lookups
-
-- [High school CEEB search](https://satsuite.collegeboard.org/k12-educators/tools-resources/k12-school-code-search)
-- [College CEEB search](https://www.suny.edu/attend/ceeb-codes/search_colleges/)
+Upload the exported CSV manually in Slate using the matching source format:
+- **PTK Import – Main Campus** / **Global Campus**
+- **Appily - Freshmen Inquiries (Cappex)**
+- **Appily - Transfer Inquiries (Cappex)**
+- **Appily – College Greenlight Inquiries (Cappex)**
+- **Appily - Transfer Prospects (Cappex)**
+- **Niche Freshman Inquiries**
+- **Niche Transfer Inquiries**
