@@ -28,8 +28,6 @@ npm run dev
 
 Open the local URL shown in the terminal (usually `http://localhost:5173`).
 
-A sample file is in `sample/` for a quick test.
-
 ## Required columns
 
 The file must include (names may vary slightly):
